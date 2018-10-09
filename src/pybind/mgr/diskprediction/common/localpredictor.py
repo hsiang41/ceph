@@ -73,11 +73,12 @@ class LocalPredictor:
         obj_predictor.initialize(models_path)
         return obj_predictor.predict(smart_datas)
 
-    def query_info(self, host_domain_id, disk_domain_id, measurement):
+    def query_info(self, host_domain_id, disk_domain_id, measurement, smart_datas={}):
         predict_datas = list()
         obj_api = ClusterAPI(self.mgr_inst)
         predicted_result = 'Unknown'
-        smart_datas = obj_api.get_device_health(disk_domain_id)
+        if not smart_datas:
+            smart_datas = obj_api.get_device_health(disk_domain_id)
         if len(smart_datas) >= 6:
             o_keys = sorted(smart_datas.iterkeys(), reverse=True)
             for o_key in o_keys:

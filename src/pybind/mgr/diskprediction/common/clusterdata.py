@@ -221,7 +221,7 @@ class ClusterAPI(object):
             try:
                 stat = self._rbd_image(ioctx, pool_name, image_name)
                 if stat.get('id'):
-                    objects = self.get_pool_objects(pool_name, stat.get('id'))
+                    objects = self.get_pool_objects(ioctx, stat.get('id'))
                     if objects:
                         stat['objects'] = objects
                         stat['pgs'] = list()
@@ -232,22 +232,21 @@ class ClusterAPI(object):
                 stat = {}
         return stat
 
-    def get_pool_objects(self, pool_name, image_id=None):
+    def get_pool_objects(self, ioctx, image_id=None):
         # list_objects
         objects = []
-        with self._open_connection(pool_name) as ioctx:
-            object_iterator = ioctx.list_objects()
-            while True:
-                try:
-                    rados_object = object_iterator.next()
-                    if image_id is None:
+        object_iterator = ioctx.list_objects()
+        while True:
+            try:
+                rados_object = object_iterator.next()
+                if image_id is None:
+                    objects.append(str(rados_object.key))
+                else:
+                    v = str(rados_object.key).split('.')
+                    if len(v) >= 2 and v[1] == image_id:
                         objects.append(str(rados_object.key))
-                    else:
-                        v = str(rados_object.key).split('.')
-                        if len(v) >= 2 and v[1] == image_id:
-                            objects.append(str(rados_object.key))
-                except StopIteration:
-                    break
+            except StopIteration:
+                break
         return objects
 
     def get_global_total_size(self):

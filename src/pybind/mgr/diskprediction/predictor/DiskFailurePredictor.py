@@ -24,6 +24,7 @@ http://www.prophetstor.com/
 
 from __future__ import print_function
 import os
+import io
 import json
 from sklearn.externals import joblib
 
@@ -229,6 +230,7 @@ class DiskFailurePredictor(object):
 
         Raises: None
         """
+        from sklearn.externals.joblib.numpy_pickle_utils import _basestring, _read_fileobject
 
         all_pred = []
 
@@ -242,11 +244,12 @@ class DiskFailurePredictor(object):
             model_attrlist = modellist[modelpath]
             ordered_data = DiskFailurePredictor.__get_ordered_attrs(
                 diff_data, model_attrlist)
+            with io.open(modelpath, mode="rb") as fb:
+                with _read_fileobject(fb, modelpath, None) as fobj:
+                clf = joblib.load(fb)
+                pred = clf.predict(ordered_data)
 
-            clf = joblib.load(modelpath)
-            pred = clf.predict(ordered_data)
-
-            all_pred.append(1 if any(pred) else 0)
+                all_pred.append(1 if any(pred) else 0)
 
         score = 2 ** sum(all_pred) - len(modellist)
         if score > 10:

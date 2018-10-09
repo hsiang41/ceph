@@ -124,6 +124,12 @@ class Module(MgrModule):
             'cmd': 'diskprediction status',
             'desc': 'Check diskprediction status',
             'perm': 'r'
+        },
+        {
+            'cmd': 'device predict-life-expectancy-file '
+                   'name=file_path,type=CephString,req=true',
+            'desc': 'Predict device life expectancy from the device health file with local predictor',
+            'perm': 'r'
         }
     ]
 
@@ -289,6 +295,27 @@ class Module(MgrModule):
 
     def _status(self, inbuf, cmd):
         return 0, json.dumps(self.status), ''
+
+    def _predict_life_expectancy_file(self, inbuf, cmd):
+        assert cmd['file_path']
+        from .common.localpredictor import LocalPredictor, gen_configuration
+        conf = gen_configuration(mgr_inst=self)
+        obj_predictor = LocalPredictor(conf)
+        with open('file_path', "r") as fd:
+            smart_datas = json.load(fd)
+        result = obj_predictor.query_info('', cmd['file_path'], '', smart_datas)
+        if result.status_code == 200:
+            near_failure = result.json()['near_failure']
+            if near_failure.lower() == 'good':
+                return 0, '>6w', ''
+            elif near_failure.lower() == 'warning':
+                return 0, '>=2w and <=6w', ''
+            elif near_failure.lower() == 'bad':
+                return 0, '<2w', ''
+            else:
+                return 0, 'unknown', ''
+        else:
+            return -errno.ENAVAIL, '', result.content
 
     def _predict_life_expectancy(self, inbuf, cmd):
         assert cmd['dev_id']
